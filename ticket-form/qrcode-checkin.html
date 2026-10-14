@@ -607,6 +607,18 @@ footer {
   </div>
 </div>
 
+<!-- 【追加】撮影許可選択モーダル -->
+<div id="photo-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.6); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); z-index:100; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
+  <div style="background:#ffffff; padding:24px 28px; border-radius:16px; max-width:380px; width:100%; text-align:center; box-shadow:0 20px 25px -5px rgba(0, 0, 0, 0.2);">
+    <h3 style="margin:0 0 12px 0; color:var(--text-main); font-size:18px; font-weight:700;">撮影許可証の交付</h3>
+    <p style="margin:0 0 20px 0; color:var(--text-sub); font-size:14px; line-height:1.5;">撮影許可証の交付を希望しますか？</p>
+    <div style="display:flex; gap:12px; justify-content:center;">
+      <button id="photo-yes-btn" style="flex:1; padding:12px 16px; background:var(--entry-color); color:white; border:none; border-radius:8px; font-size:15px; font-weight:700; cursor:pointer; transition:opacity 0.15s ease;">はい</button>
+      <button id="photo-no-btn" style="flex:1; padding:12px 16px; background:#64748b; color:white; border:none; border-radius:8px; font-size:15px; font-weight:700; cursor:pointer; transition:opacity 0.15s ease;">いいえ</button>
+    </div>
+  </div>
+</div>
+
 <footer>
   Powered by Google Apps Script &amp; ZXing (Zebra Crossing)
 </footer>
@@ -819,7 +831,9 @@ function processTicket(qrData) {
     lastInvalidId = "";
 
     if (status === "OK") {
-      triggerMagsafe("ok", "入場受付完了", "ok");
+      triggerMagsafe("ok", "入場受付完了", "ok", "", () => {
+        showPhotoModal(ticketId);
+      });
       resultPlaceholder.innerHTML = `<b style="color:var(--entry-color); font-size:20px;">【成功】初回入場</b><br><br><b>ID:</b> ${ticketId}<br><b>時刻:</b> ${new Date().toLocaleTimeString()}`;
     }
     else if (status === "EXIT_OK") {
@@ -987,7 +1001,7 @@ function logInvalidQR(rawCode) {
   fetch(GAS_URL + "?mode=log_invalid&data=" + encodeURIComponent(rawCode), { method: "POST" });
 }
 
-function triggerMagsafe(statusClass, text, soundType, subText = "") {
+function triggerMagsafe(statusClass, text, soundType, subText = "", onComplete = null) {
   let overlay = document.getElementById("magsafe-overlay");
   let iconBox = document.getElementById("magsafe-icon-box");
   let txtNode = document.getElementById("magsafe-text");
@@ -1056,10 +1070,59 @@ function triggerMagsafe(statusClass, text, soundType, subText = "") {
     overlay.className = "";
     scanFrame.classList.remove("detected");
 
-    if (!isPaused) {
-      isProcessing = false;
+    if (onComplete) {
+      onComplete();
+    } else {
+      if (!isPaused) {
+        isProcessing = false;
+      }
     }
   }, displayTime);
+}
+
+/* 【追加】撮影許可選択モーダル制御関数 */
+function showPhotoModal(ticketId) {
+  const modal = document.getElementById("photo-modal");
+  const yesBtn = document.getElementById("photo-yes-btn");
+  const noBtn = document.getElementById("photo-no-btn");
+
+  modal.style.display = "flex";
+
+  const handleYes = () => {
+    cleanup();
+    modal.style.display = "none";
+    fetchWithRetry(GAS_URL, {
+      method: "POST",
+      body: JSON.stringify({
+        ticketId: ticketId,
+        mode: "photo_permit"
+      })
+    }, 1, 8000)
+    .then(res => res.text())
+    .then(resText => {
+      resultPlaceholder.innerHTML += `<br><b style="color:var(--entry-color); font-size:14px;">📷 撮影許可証の交付記録完了</b>`;
+    })
+    .catch(err => {
+      console.error("撮影許可記録エラー:", err);
+    })
+    .finally(() => {
+      if (!isPaused) isProcessing = false;
+    });
+  };
+
+  const handleNo = () => {
+    cleanup();
+    modal.style.display = "none";
+    if (!isPaused) isProcessing = false;
+  };
+
+  const cleanup = () => {
+    yesBtn.removeEventListener("click", handleYes);
+    noBtn.removeEventListener("click", handleNo);
+  };
+
+  yesBtn.addEventListener("click", handleYes);
+  noBtn.addEventListener("click", handleNo);
 }
 
 function populateCameraList() {
