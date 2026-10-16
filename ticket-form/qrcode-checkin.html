@@ -414,22 +414,53 @@ footer {
   max-width: 100%;
 }
 
-.status-ok { --magsafe-color: #29d892; --ci-soft: #c4efdf; } /* チェックアニメーションの緑 */
+.status-ok { --magsafe-color: #29d892; --ci-soft: #c4efdf; }
 .status-exit { --magsafe-color: var(--exit-color); }
 .status-reentry { --magsafe-color: var(--reentry-color); --ci-soft: #c4d5fa; }
 .status-error { --magsafe-color: var(--error-color); }
 .status-warning { --magsafe-color: var(--exit-color); }
 
-/* =========================================================
-   完了チェックマーク アニメーション（初回入場・再入場）
-   GIFを1コマずつ計測した値をキーフレーム化したもの。
-   viewBox 1200x1200 上の円は、点(600,604.4)を基準に拡大縮小する。
-   ========================================================= */
+/* 入場開始前全画面オーバーレイ */
+#pre-entry-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: none; /* JSで自動制御 */
+  justify-content: center;
+  align-items: center;
+  z-index: 200;
+  padding: 20px;
+  box-sizing: border-box;
+  pointer-events: auto; /* 下の要素を一切操作させない */
+}
+
+.pre-entry-text {
+  font-size: clamp(26px, 5.5vw, 46px);
+  font-weight: 800;
+  color: #0f172a;
+  text-align: center;
+  letter-spacing: 1.5px;
+  line-height: 1.3;
+  user-select: none;
+  text-shadow: 
+    -2px -2px 0 #ffffff,  
+     2px -2px 0 #ffffff,
+    -2px  2px 0 #ffffff,
+     2px  2px 0 #ffffff,
+     0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+/* 完了チェックマーク アニメーション */
 .ci-svg {
   display: block;
-  width: 110px;   /* 円の直径が従来のアイコン(76px)と同じ大きさになるサイズ */
+  width: 110px;
   height: 110px;
-  margin: -17px 0; /* 拡大するハロー分の余白を、レイアウトに影響させない */
+  margin: -17px 0;
 }
 .ci-soft, .ci-main {
   transform-origin: 600px 604.4px;
@@ -447,8 +478,6 @@ footer {
   stroke-dashoffset: 520;
   opacity: 0;
 }
-/* SVGが挿入された瞬間に再生開始。終了後は完成形を保持するので、
-   オーバーレイのフェードアウト中もチェックが消えない */
 .ci-soft  { animation: ci-soft 1840ms linear both; }
 .ci-main  { animation: ci-main 1840ms linear both; }
 .ci-check { animation: ci-check 1840ms linear both; }
@@ -548,14 +577,12 @@ footer {
   100% { opacity: 1; stroke-dashoffset: 1.6; }
 }
 
-/* 「視差効果を減らす」設定の端末では、動かさず完成形だけを表示 */
 @media (prefers-reduced-motion: reduce) {
   .ci-soft, .ci-main, .ci-check { animation: none; }
   .ci-soft { display: none; }
   .ci-main { transform: none; }
   .ci-check { opacity: 1; stroke-dashoffset: 0; }
 }
-
 </style>
 </head>
 <body>
@@ -607,7 +634,7 @@ footer {
   </div>
 </div>
 
-<!-- 【追加】撮影許可選択モーダル -->
+<!-- 撮影許可選択モーダル -->
 <div id="photo-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.6); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); z-index:100; justify-content:center; align-items:center; padding:20px; box-sizing:border-box;">
   <div style="background:#ffffff; padding:24px 28px; border-radius:16px; max-width:380px; width:100%; text-align:center; box-shadow:0 20px 25px -5px rgba(0, 0, 0, 0.2);">
     <h3 style="margin:0 0 12px 0; color:var(--text-main); font-size:18px; font-weight:700;">撮影許可証の交付</h3>
@@ -619,12 +646,29 @@ footer {
   </div>
 </div>
 
+<!-- 【追加】9:30入場開始前 オーバーレイ -->
+<div id="pre-entry-overlay">
+  <div class="pre-entry-text">9:30より入場を開始します</div>
+</div>
+
 <footer>
   Powered by Google Apps Script &amp; ZXing (Zebra Crossing)
 </footer>
 
 <script>
 const GAS_URL = "https://script.google.com/a/macros/g.bears.ed.jp/s/AKfycbxdMLfj6qHITIEInB52DC1DJqojKlb-dWb43AoqMchlkCFyuqRpZtqB_0u6vcFydGw/exec";
+
+/* -------------------------------------------------------------
+   【時間設定】9:30入場開始 アナウンス制御設定
+   noticeStart: 画面を暗転ロックしてアナウンス表示する開始時刻 (9:20)
+   entryStart : 入場開始時刻 (9:30)
+------------------------------------------------------------- */
+const PRE_ENTRY_CONFIG = {
+  noticeStartHour: 10,
+  noticeStartMinute: 00,
+  entryStartHour: 10,
+  entryStartMinute: 05
+};
 
 let currentMode = "entry"; 
 let scanFrame = document.getElementById("scan-frame");
@@ -633,6 +677,7 @@ let pauseBtn = document.getElementById("pause-btn");
 let resultPlaceholder = document.getElementById("result-placeholder");
 let isProcessing = false;
 let isPaused = true; 
+let isPreNoticeActive = false; // アナウンスロック中フラグ
 let audioCtx = null;
 
 let codeReader = null;
@@ -656,6 +701,36 @@ function fetchWithRetry(url, options = {}, retries = 1, timeoutMs = 8000) {
     }
     throw err;
   });
+}
+
+/* -------------------------------------------------------------
+   時刻監視ロジック（1秒ごとにチェックして自動ロック＆自動解除）
+------------------------------------------------------------- */
+function checkPreNoticeTime() {
+  const now = new Date();
+  const h = now.getHours();
+  const m = now.getMinutes();
+  const s = now.getSeconds();
+
+  const nowSec = h * 3600 + m * 60 + s;
+  const noticeSec = PRE_ENTRY_CONFIG.noticeStartHour * 3600 + PRE_ENTRY_CONFIG.noticeStartMinute * 60;
+  const entrySec = PRE_ENTRY_CONFIG.entryStartHour * 3600 + PRE_ENTRY_CONFIG.entryStartMinute * 60;
+
+  const overlay = document.getElementById("pre-entry-overlay");
+
+  // 9:20:00 〜 9:29:59 の間はロック画面を表示
+  if (nowSec >= noticeSec && nowSec < entrySec) {
+    if (!isPreNoticeActive) {
+      isPreNoticeActive = true;
+      overlay.style.display = "flex";
+    }
+  } else {
+    // 9:30:00 以降、または 9:20 未満の場合は自動でロック解除
+    if (isPreNoticeActive) {
+      isPreNoticeActive = false;
+      overlay.style.display = "none";
+    }
+  }
 }
 
 function setMode(mode) {
@@ -719,7 +794,8 @@ function initScanner(deviceId = null) {
   codeReader = new ZXing.BrowserMultiFormatReader(hints, 30);
 
   codeReader.decodeFromVideoDevice(deviceId, 'video', (result, err) => {
-    if (result && !isProcessing && !isPaused) {
+    // ロック中（isPreNoticeActive）はQR処理を実行しない
+    if (result && !isProcessing && !isPaused && !isPreNoticeActive) {
       isProcessing = true;
       scanFrame.classList.add("detected");
       processTicket(result.text);
@@ -772,7 +848,7 @@ function togglePause() {
 }
 
 function processTicket(qrData) {
-  if (isPaused) return;
+  if (isPaused || isPreNoticeActive) return;
 
   let ticketId = "";
   let decodedData;
@@ -822,11 +898,9 @@ function processTicket(qrData) {
   }, 1, 8000)
   .then(res => res.text())
   .then(result => {
-    // GASのレスポンスは "ステータス|入場区分(a/b/c/any)" の形式。
-    // 成功以外（notfound / already 等）は入場区分が付かない単独の文字列で返る。
     const parts = result.split("|");
     const status = parts[0];
-    const ticketPart = (parts[1] || "").trim().toLowerCase(); // "a" / "b" / "c" / "any"
+    const ticketPart = (parts[1] || "").trim().toLowerCase();
 
     lastInvalidId = "";
 
@@ -844,7 +918,6 @@ function processTicket(qrData) {
       triggerMagsafe("reentry", "再入場完了", "ok");
       resultPlaceholder.innerHTML = `<b style="color:var(--reentry-color); font-size:20px;">【成功】再入場</b><br><br><b>ID:</b> ${ticketId}<br><b>時刻:</b> ${new Date().toLocaleTimeString()}`;
     }
-    // ① スプレッドシート（台帳）に記録されていないコード
     else if (status === "notfound") {
       triggerMagsafe("error", "未登録チケット", "invalid", "台帳に見つかりません");
       resultPlaceholder.innerHTML = `
@@ -856,11 +929,10 @@ function processTicket(qrData) {
           </div>
         </div>`;
     }
-    // ⑤⑥ Aパート時間帯にB/C、Bパート時間帯にCが読み込まれた場合（GAS側がWRONG_TIME_A/B/Cを返す）
     else if (status === "WRONG_TIME_A" || status === "WRONG_TIME_B" || status === "WRONG_TIME_C") {
       const partKey = status.replace("WRONG_TIME_", "");
       const partLabels = {
-        A: "Aパート（9:40〜）",
+        A: "Aパート（9:30〜）",
         B: "Bパート（11:00〜）",
         C: "Cパート（13:00〜）"
       };
@@ -875,9 +947,6 @@ function processTicket(qrData) {
           </div>
         </div>`;
     }
-    // ③ 一時退場済みのチケットが「初回入場」タブで読み込まれた場合／
-    // ② すでに初回入場・再入場済みのチケットが「初回入場」タブで再度読み込まれた場合
-    // （GAS側は現在どちらも同じ "already" を返すため、両方の可能性を案内する）
     else if (status === "already") {
       triggerMagsafe("warning", "処理済みチケットです", "error", "入場状況をご確認ください");
       resultPlaceholder.innerHTML = `
@@ -890,7 +959,6 @@ function processTicket(qrData) {
           </div>
         </div>`;
     }
-    // ④-a すでに再入場（＝入場中）のチケットが「再入場」タブで再度読み込まれた場合
     else if (status === "ALREADY_IN") {
       triggerMagsafe("error", "重複エラー（入場中）", "error", "既に入場中のチケットです");
       resultPlaceholder.innerHTML = `
@@ -902,7 +970,6 @@ function processTicket(qrData) {
           </div>
         </div>`;
     }
-    // 「一時退場」タブで、既に退場済みのチケットを読み込んだ場合
     else if (status === "ALREADY_OUT" && currentMode === "exit") {
       triggerMagsafe("error", "重複エラー（退場済み）", "error", "既に一時退場処理済みです");
       resultPlaceholder.innerHTML = `
@@ -914,7 +981,6 @@ function processTicket(qrData) {
           </div>
         </div>`;
     }
-    // 「一時退場」または「再入場」タブで、まだ一度も入場していないチケットを読み込んだ場合
     else if (status === "ERROR_NOT_IN_YET") {
       const modeLabel = currentMode === "exit" ? "一時退場" : "再入場";
       triggerMagsafe("warning", "入場記録がありません", "error", "「初回入場」タブでスキャンしてください");
@@ -927,7 +993,6 @@ function processTicket(qrData) {
           </div>
         </div>`;
     }
-    // サーバー混雑（同時アクセスでロック取得に失敗）
     else if (status === "BUSY") {
       triggerMagsafe("error", "サーバー混雑中", "error", "少し待って再度スキャンしてください");
       resultPlaceholder.innerHTML = `
@@ -939,7 +1004,6 @@ function processTicket(qrData) {
           </div>
         </div>`;
     }
-    // ⑦ サーバー側で例外が発生した場合
     else if (status === "SERVER_ERROR") {
       triggerMagsafe("error", "サーバーエラー", "error", "本部にご連絡ください");
       resultPlaceholder.innerHTML = `
@@ -951,7 +1015,6 @@ function processTicket(qrData) {
           </div>
         </div>`;
     }
-    // ⑦ その他、想定外のレスポンスが返った場合
     else {
       lastInvalidId = ticketId;
       triggerMagsafe("error", "処理エラー", "error", "本部にご連絡ください");
@@ -1080,7 +1143,6 @@ function triggerMagsafe(statusClass, text, soundType, subText = "", onComplete =
   }, displayTime);
 }
 
-/* 【追加】撮影許可選択モーダル制御関数 */
 function showPhotoModal(ticketId) {
   const modal = document.getElementById("photo-modal");
   const yesBtn = document.getElementById("photo-yes-btn");
@@ -1157,7 +1219,11 @@ function switchCamera() {
   initScanner(currentDeviceId);
 }
 
-window.addEventListener('load', () => {});
+// ページ読み込み時に時刻判定ループを開始
+window.addEventListener('load', () => {
+  checkPreNoticeTime();
+  setInterval(checkPreNoticeTime, 1000); // 1秒ごとに時刻判定
+});
 </script>
 </body>
 </html>
