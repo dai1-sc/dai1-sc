@@ -742,118 +742,6 @@
       line-height: 1.5;
     }
 
-    /* --- ポップアップスタイル --- */
-    .popup-overlay {
-      position: fixed;
-      inset: 0;
-      background-color: rgba(0, 0, 0, 0.45);
-      z-index: 99999;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 20px;
-      box-sizing: border-box;
-      opacity: 0;
-      animation: fadeIn 0.25s forwards;
-    }
-
-    .popup-card {
-      position: relative;
-      background: #ffffff;
-      width: 100%;
-      max-width: 360px;
-      border-radius: 12px;
-      padding: 24px 20px 20px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-      box-sizing: border-box;
-      color: var(--gray-800);
-    }
-
-    .popup-close-btn {
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      width: 28px;
-      height: 28px;
-      border: none;
-      background: transparent;
-      color: #888888;
-      font-size: 20px;
-      line-height: 1;
-      cursor: pointer;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      border-radius: 4px;
-      transition: background-color 0.2s, color 0.2s;
-    }
-
-    .popup-close-btn:hover {
-      background-color: #f0f0f0;
-      color: #333333;
-    }
-
-    .popup-title {
-      font-size: 15px;
-      font-weight: 700;
-      margin: 0 0 16px 0;
-      text-align: center;
-      padding: 0 20px;
-      line-height: 1.4;
-      color: var(--navy);
-    }
-
-    .popup-text {
-      font-size: 13px;
-      line-height: 1.6;
-      color: #444444;
-      margin-bottom: 16px;
-    }
-
-    .popup-section-title {
-      font-size: 12px;
-      font-weight: 700;
-      color: #666666;
-      margin-bottom: 6px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .popup-list {
-      margin: 0 0 16px 0;
-      padding-left: 18px;
-      font-size: 13px;
-      color: #444444;
-      line-height: 1.6;
-    }
-
-    .popup-warning-box {
-      border-top: 1px dashed #e0e0e0;
-      padding-top: 12px;
-      margin-bottom: 16px;
-    }
-
-    .popup-warning-box p {
-      margin: 0;
-      font-size: 12px;
-      color: #d9534f;
-      line-height: 1.5;
-    }
-
-    .popup-signature {
-      text-align: right;
-      font-size: 12px;
-      color: #666666;
-      font-weight: 600;
-      border-top: 1px solid #f0f0f0;
-      padding-top: 10px;
-      margin: 0;
-    }
-
-    @keyframes fadeIn {
-      to { opacity: 1; }
-    }
-
     /* ===== レスポンシブ ===== */
     @media (max-width: 480px) {
       body { padding: 12px; }
@@ -868,12 +756,8 @@
       .step:not(:last-child)::after { left: 32px; width: calc(100% - 32px); }
     }
   </style>
-</>
+</head>
 <body>
-
-
-  </div>
-</div>
 
 <div class="card" role="main">
   <!-- ローディングオーバーレイ -->
@@ -914,33 +798,33 @@
   <div class="card-body">
 
     <!-- ① ログイン画面 -->
-<div class="section active" id="loginSection" role="region" aria-label="ログイン">
-  <div class="login-intro" id="loginIntro">
-    <div class="login-icon" aria-hidden="true">🔑</div>
-    <h2>学校アカウントでログイン</h2>
-    <p>申請には学校のGoogleアカウント<br>（@g.bears.ed.jp）が必要です</p>
-  </div>
+    <div class="section active" id="loginSection" role="region" aria-label="ログイン">
+      <div class="login-intro" id="loginIntro">
+        <div class="login-icon" aria-hidden="true">🔑</div>
+        <h2>学校アカウントでログイン</h2>
+        <p>申請には学校のGoogleアカウント<br>（@g.bears.ed.jp）が必要です</p>
+      </div>
 
-  <div class="login-divider" id="loginDivider" aria-hidden="true">認証</div>
+      <div class="login-divider" id="loginDivider" aria-hidden="true">認証</div>
 
-  <div class="google-btn-wrap" id="googleBtnWrap">
-    <div id="g_id_onload"
-      data-client_id="254956450031-t49krcv9oncctqnvjbh5dmempvo418su.apps.googleusercontent.com"
-      data-callback="handleCredential"
-      data-auto_prompt="false">
+      <div class="google-btn-wrap" id="googleBtnWrap">
+        <div id="g_id_onload"
+          data-client_id="254956450031-t49krcv9oncctqnvjbh5dmempvo418su.apps.googleusercontent.com"
+          data-callback="handleCredential"
+          data-auto_prompt="false">
+        </div>
+        <div class="g_id_signin" data-type="standard" data-size="large" data-text="signin_with" data-shape="rectangular" data-logo_alignment="left"></div>
+      </div>
+
+      <div class="info-box" id="loginInfoBox" role="note">
+        <span class="icon" aria-hidden="true">ⓘ</span>
+        <span>個人のGoogleアカウントではログインできません。学校から配付されたアカウントをお使いください。</span>
+      </div>
+
+      <div class="error-msg" id="loginError" role="alert" aria-live="assertive">
+        <span id="loginErrorText"></span>
+      </div>
     </div>
-    <div class="g_id_signin" data-type="standard" data-size="large" data-text="signin_with" data-shape="rectangular" data-logo_alignment="left"></div>
-  </div>
-
-  <div class="info-box" id="loginInfoBox" role="note">
-    <span class="icon" aria-hidden="true">ⓘ</span>
-    <span>個人のGoogleアカウントではログインできません。学校から配付されたアカウントをお使いください。</span>
-  </div>
-
-  <div class="error-msg" id="loginError" role="alert" aria-live="assertive">
-    <span id="loginErrorText"></span>
-  </div>
-</div>
 
     <!-- ② 待機列画面 -->
     <div class="section" id="waitingSection" role="region" aria-label="待機列">
@@ -1107,15 +991,44 @@
    </div><!-- /card-body -->
 </div><!-- /card -->
 
-
 <script>
   // Google Sign-In コールバック
   window.handleCredential = handleCredential;
 
+  /* ===== 申請受付日時設定 ===== */
   const APPLICATION_START_AT = new Date("2026-10-09T12:00:00+09:00");
-  const APPLICATION_START_LABEL =
-    "10月09日12時00分";
+  const APPLICATION_START_LABEL = "10月09日12時00分";
 
+  const APPLICATION_END_AT = new Date("2026-10-16T23:59:00+09:00");
+  const APPLICATION_END_LABEL = "10月16日(金) 23時59分";
+
+  /* 申請終了画面の表示処理 */
+  function showApplicationClosedState() {
+    stopPolling();
+    stopWaitingPolling();
+
+    const intro = document.getElementById("loginIntro");
+    const divider = document.getElementById("loginDivider");
+    const googleWrap = document.getElementById("googleBtnWrap");
+    const infoBox = document.getElementById("loginInfoBox");
+    const error = document.getElementById("loginError");
+
+    intro.innerHTML = `
+      <div class="login-icon" style="background:var(--red-bg); border-color:#feb2b2; color:var(--red);" aria-hidden="true">🔒</div>
+      <h2 style="color:var(--red);">申請は終了しました</h2>
+      <p style="margin-top:8px;">一高祭 入場チケットの申請受付は<br><strong>${APPLICATION_END_LABEL}</strong> をもって終了いたしました。</p>
+    `;
+
+    if (divider) divider.style.display = "none";
+    if (googleWrap) googleWrap.style.display = "none";
+    if (infoBox) infoBox.style.display = "none";
+    if (error) error.style.display = "none";
+
+    setStep(1);
+    showSection('loginSection');
+  }
+
+  /* 申請開始前画面の表示処理 */
   function showLoginBlockedState() {
     const intro = document.getElementById("loginIntro");
     const divider = document.getElementById("loginDivider");
@@ -1142,14 +1055,36 @@
     }
   }
 
-  function isApplicationOpenNow() {
-    return new Date() >= APPLICATION_START_AT;
+  /* 申請期間のチェック */
+  function checkApplicationPeriod() {
+    const now = new Date();
+    
+    // 終了時間を超えている場合
+    if (now > APPLICATION_END_AT) {
+      showApplicationClosedState();
+      return false;
+    }
+    
+    // 開始時間前の場合
+    if (now < APPLICATION_START_AT) {
+      showLoginBlockedState();
+      return false;
+    }
+
+    return true;
   }
 
   document.addEventListener("DOMContentLoaded", function() {
-    if (!isApplicationOpenNow()) {
-      showLoginBlockedState();
+    if (!checkApplicationPeriod()) {
       return;
+    }
+
+    // 23:59を迎えた時に自動的に「申請は終了しました」に切り替えるタイマー
+    const msUntilEnd = APPLICATION_END_AT.getTime() - Date.now();
+    if (msUntilEnd > 0) {
+      setTimeout(() => {
+        showApplicationClosedState();
+      }, msUntilEnd);
     }
 
     const popup = document.getElementById("testPopup");
@@ -1171,36 +1106,35 @@
   });
 
   const GAS_URL = "https://script.google.com/macros/s/AKfycbxdMLfj6qHITIEInB52DC1DJqojKlb-dWb43AoqMchlkCFyuqRpZtqB_0u6vcFydGw/exec";
-const ALLOWED_DOMAIN = "g.bears.ed.jp";
+  const ALLOWED_DOMAIN = "g.bears.ed.jp";
 
-// パートごとの定員を設定
-const CAPACITY = {
-  a: 500,
-  b: 800,
-  c: 800
-};
+  // パートごとの定員を設定
+  const CAPACITY = {
+    a: 500,
+    b: 800,
+    c: 800
+  };
 
-const TIME_PARTS = ["a", "b", "c"];
-const TIME_LABELS = {
-  a: "Aパート（9:40）",
-  b: "Bパート（11:00）",
-  c: "Cパート（13:00）"
-};
+  const TIME_PARTS = ["a", "b", "c"];
+  const TIME_LABELS = {
+    a: "Aパート（9:40）",
+    b: "Bパート（11:00）",
+    c: "Cパート（13:00）"
+  };
 
-let userEmail = "";
-let selectedTime = "";
-let isEdit = false;
+  let userEmail = "";
+  let selectedTime = "";
+  let isEdit = false;
 
   // セッション（待機列）管理
   let sessionId = "";
   let waitingPollId = null;
-  const WAITING_POLL_MS = 3000; // 待機列の確認間隔
+  const WAITING_POLL_MS = 3000;
 
   // ポーリング制御
   let pollingIntervalId = null;
-  const POLL_MS = 3000; // 残席更新間隔
+  const POLL_MS = 3000;
 
-  // ローディング重複管理（ネストされた処理でも適切に表示/非表示）
   let loadingCount = 0;
   function showLoading(msg = "読み込み中...") {
     loadingCount++;
@@ -1247,13 +1181,12 @@ let isEdit = false;
     });
   }
 
-  /* ===== セクション切替（フォーム表示時にポーリング開始） ===== */
+  /* ===== セクション切替 ===== */
   function showSection(id) {
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     document.getElementById(id).classList.add('active');
 
     if (id === 'formSection') {
-      // 初回読み込みが終わるまでローディングを表示
       showLoading('残席情報を取得しています...');
       startPolling();
     } else {
@@ -1264,7 +1197,6 @@ let isEdit = false;
   /* ===== ポーリングの開始／停止 ===== */
   function startPolling() {
     if (pollingIntervalId) return;
-    // 初回は即時取得して UI を更新（loadRemaining 内で hideLoading する）
     loadRemaining();
     pollingIntervalId = setInterval(() => {
       loadRemaining();
@@ -1278,12 +1210,14 @@ let isEdit = false;
     }
   }
 
-  // タブの可視性に応じてポーリングを停止/再開
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
       stopPolling();
-      // 待機列はページを開いたままなら維持する
     } else {
+      if (new Date() > APPLICATION_END_AT) {
+        showApplicationClosedState();
+        return;
+      }
       if (document.getElementById('formSection').classList.contains('active')) {
         startPolling();
       } else if (document.getElementById('waitingSection').classList.contains('active')) {
@@ -1307,7 +1241,11 @@ let isEdit = false;
 
   /* ===== Google ログイン ===== */
   function handleCredential(response) {
-    // ログイン開始時にローディングを出す
+    if (new Date() > APPLICATION_END_AT) {
+      showApplicationClosedState();
+      return;
+    }
+
     showLoading('アカウント確認中...');
 
     try {
@@ -1330,12 +1268,10 @@ let isEdit = false;
       userEmail = email;
       document.getElementById("userEmail").textContent = "ログイン中：" + email;
 
-      // まず既存申請の有無を確認
       fetch(GAS_URL + "?mode=check&email=" + encodeURIComponent(email))
         .then(res => res.json())
         .then(data => {
           if (data.exists) {
-            // 申請済みの場合は待機列に入らない
             const timeLabel = TIME_LABELS[data.time] || data.time;
             document.getElementById("alreadyTime").textContent = timeLabel;
             document.getElementById("alreadyCount").textContent = data.count + "枚";
@@ -1353,8 +1289,6 @@ let isEdit = false;
             return;
           }
 
-          // 未申請ならセッションを作成し、空きがあればフォームへ、
-          // 5人埋まっていれば待機列へ案内する
           startApplicationSession();
         })
         .catch(() => {
@@ -1369,19 +1303,19 @@ let isEdit = false;
   }
 
   /* ===== 申請セッション作成 ===== */
-function startApplicationSession() {
-  fetch(GAS_URL + "?mode=get_or_create_session&email=" + encodeURIComponent(userEmail))
-    .then(res => res.json())
-    .then(data => {
-      handleSessionCreated(data);
-    })
-    .catch(err => {
-      hideLoading();
-      console.error('getOrCreateSession failed:', err);
-      showError('loginError', '申請状況の確認中にエラーが発生しました。もう一度お試しください。');
-    });
-}
-  /* ===== セッション作成結果 ===== */
+  function startApplicationSession() {
+    fetch(GAS_URL + "?mode=get_or_create_session&email=" + encodeURIComponent(userEmail))
+      .then(res => res.json())
+      .then(data => {
+        handleSessionCreated(data);
+      })
+      .catch(err => {
+        hideLoading();
+        console.error('getOrCreateSession failed:', err);
+        showError('loginError', '申請状況の確認中にエラーが発生しました。もう一度お試しください。');
+      });
+  }
+
   function handleSessionCreated(data) {
     if (!data) {
       hideLoading();
@@ -1389,9 +1323,6 @@ function startApplicationSession() {
       return;
     }
 
-    // 【修正】サーバーが混雑中で一時的にロックを取得できなかった場合（isBusy）は
-    // エラーではないので、ログイン画面のエラー表示は出さず自動的に再試行する。
-    // これによりログイン画面に戻されることなく、裏側で待機列への接続を続ける。
     if (data.isBusy) {
       showLoading('アクセスが集中しています。自動的に再試行しています...');
       setTimeout(startApplicationSession, 2000);
@@ -1408,13 +1339,11 @@ function startApplicationSession() {
     sessionId = data.sessionId || "";
 
     if (data.canProceed) {
-      // すぐに申請可能
       setStep(3);
       showSection('formSection');
       return;
     }
 
-    // 待機列へ
     setStep(2);
     updateWaitingDisplay(data.position, data.estimatedWaitTime);
     showSection('waitingSection');
@@ -1424,7 +1353,6 @@ function startApplicationSession() {
   /* ===== 待機列ポーリング ===== */
   function startWaitingPolling() {
     stopWaitingPolling();
-
     checkWaitingStatus();
     waitingPollId = setInterval(checkWaitingStatus, WAITING_POLL_MS);
   }
@@ -1436,51 +1364,48 @@ function startApplicationSession() {
     }
   }
 
-  /* ===== 待機列ポーリング（fetchへ変更） ===== */
-function checkWaitingStatus() {
-  if (!sessionId) return;
+  function checkWaitingStatus() {
+    if (!sessionId) return;
 
-  fetch(GAS_URL + "?mode=check_session_status&sessionId=" + encodeURIComponent(sessionId))
-    .then(res => res.json())
-    .then(data => {
-      if (!data) return;
+    fetch(GAS_URL + "?mode=check_session_status&sessionId=" + encodeURIComponent(sessionId))
+      .then(res => res.json())
+      .then(data => {
+        if (!data) return;
 
-      // 【修正】混雑によりサーバー側がロックを取得できなかっただけの場合（isBusy）は
-      // 待機列から脱落させず、現在の順番表示を維持したまま次のポーリングを待つ。
-      if (data.isBusy) {
+        if (data.isBusy) {
+          document.getElementById('waitingStatus').textContent =
+            '混雑のため確認を再試行しています...';
+          return;
+        }
+
+        if (data.error) {
+          stopWaitingPolling();
+          showError('loginError', data.error);
+          setStep(1);
+          showSection('loginSection');
+          return;
+        }
+
+        if (data.canProceed) {
+          stopWaitingPolling();
+          document.getElementById('waitingStatus').textContent =
+            '順番になりました。申請画面へ移動します...';
+
+          setTimeout(function() {
+            setStep(3);
+            showSection('formSection');
+          }, 500);
+          return;
+        }
+
+        updateWaitingDisplay(data.position, data.estimatedWaitTime);
+      })
+      .catch(err => {
+        console.warn('checkSessionStatus failed:', err);
         document.getElementById('waitingStatus').textContent =
-          '混雑のため確認を再試行しています...';
-        return;
-      }
-
-      if (data.error) {
-        stopWaitingPolling();
-        showError('loginError', data.error);
-        setStep(1);
-        showSection('loginSection');
-        return;
-      }
-
-      if (data.canProceed) {
-        stopWaitingPolling();
-        document.getElementById('waitingStatus').textContent =
-          '順番になりました。申請画面へ移動します...';
-
-        setTimeout(function() {
-          setStep(3);
-          showSection('formSection');
-        }, 500);
-        return;
-      }
-
-      updateWaitingDisplay(data.position, data.estimatedWaitTime);
-    })
-    .catch(err => {
-      console.warn('checkSessionStatus failed:', err);
-      document.getElementById('waitingStatus').textContent =
-        '接続を確認しています...';
-    });
-}
+          '接続を確認しています...';
+      });
+  }
 
   function updateWaitingDisplay(position, estimatedWaitTime) {
     const positionEl = document.getElementById('waitingPosition');
@@ -1489,8 +1414,6 @@ function checkWaitingStatus() {
 
     const pos = Number(position) || 0;
     const wait = Number(estimatedWaitTime) || 0;
-
-    // 「前にいる人数」なので、自分自身を含めない表示にする
     const ahead = Math.max(0, pos - 1);
 
     positionEl.innerHTML = ahead + '<small>人</small>';
@@ -1508,40 +1431,30 @@ function checkWaitingStatus() {
     }
   }
 
-  // 待機中にタブを離れても、ページが開いている限り確認を継続する。
-  // ただしページをリロードするとセッションを引き継がないため、再度並び直しになる。
-  /* ===== 残席読み込み（表示はそのまま維持し、成功時のみ上書き） ===== */
+  /* ===== 残席読み込み ===== */
   function loadRemaining() {
     return fetch(GAS_URL + "?mode=remaining")
       .then(res => res.json())
       .then(data => {
-        // data は { a: <usedCount>, b: <usedCount>, c: <usedCount> } の想定
         TIME_PARTS.forEach(t => updateOption(t, data[t]));
-        // 初回読み込み後はローディングを消す（複数の showLoading を考慮）
         hideLoading();
       })
       .catch((err) => {
-        // エラー時は既存表示を維持、ローディングは解除してユーザーを戻す
         console.warn("remaining fetch failed:", err);
         hideLoading();
       });
   }
 
   function updateOption(time, count) {
-    // 時間帯ごとの上限数を取得 (a:500, b:800, c:800)
     const maxCap = CAPACITY[time];
-    
-    // 【修正点1】 CAPACITY -> maxCap (CAPACITY[time]) に変更
     const remaining = maxCap - count;
     
     const remEl = document.getElementById("remaining-" + time);
     const fillEl = document.getElementById("fill-" + time);
     const opt = document.getElementById("opt-" + time);
     
-    // 【修正点2】 CAPACITY -> maxCap (CAPACITY[time]) に変更
     const usedPct = Math.min((count / maxCap) * 100, 100);
 
-    // バーアニメーション（少し遅延させて見せる）
     setTimeout(() => { fillEl.style.width = usedPct + "%"; }, 100);
 
     if (remaining <= 0) {
@@ -1556,7 +1469,6 @@ function checkWaitingStatus() {
         opt.onkeydown = null;
       }
 
-      // もし現在選択中の時間帯が満員になったら選択解除して通知
       if (selectedTime === time) {
         selectedTime = "";
         opt.classList.remove('selected');
@@ -1567,7 +1479,6 @@ function checkWaitingStatus() {
       remEl.textContent = "残り" + remaining + "枚";
       remEl.className = "remaining few";
       fillEl.className = "capacity-fill few";
-      // 再び選択可能にする（満員解除時）
       if (opt.classList.contains('full')) {
         opt.classList.remove('full');
         opt.removeAttribute('aria-disabled');
@@ -1603,12 +1514,17 @@ function checkWaitingStatus() {
     opt.classList.add("selected");
     opt.setAttribute('aria-checked', 'true');
 
-    // 選択成功したらフォームエラーはクリア
     showError('formError', '');
   }
 
   /* ===== 申請済み → 編集 ===== */
   function startEdit() {
+    if (new Date() > APPLICATION_END_AT) {
+      alert("申請受付時間が終了したため、編集できません。");
+      showApplicationClosedState();
+      return;
+    }
+
     showLoading('申請情報を確認しています...');
     fetch(GAS_URL + "?mode=check&email=" + encodeURIComponent(userEmail))
       .then(res => res.json())
@@ -1628,24 +1544,19 @@ function checkWaitingStatus() {
       });
   }
 
-  // 申請ボタンの多重押下を防ぐためのフラグ
   let isSubmitting = false;
 
-  /* ===== 申請送信（送信前に最新残席を確認） ===== */
-  // ===== 申請中の排他制御（自動リトライ）まわりの設定 =====
-  const SUBMIT_MAX_RETRIES = 8;       // 「busy」時に自動で再試行する最大回数
-  const SUBMIT_RETRY_DELAY_MS = 2000; // 再試行までの待機時間（ミリ秒）
+  const SUBMIT_MAX_RETRIES = 8;
+  const SUBMIT_RETRY_DELAY_MS = 2000;
   const SUBMIT_PROCESSING_MSG =
     '申請処理中です。画面を閉じたりリロードしたりせず、そのままお待ちください。';
 
-  // 申請処理中にページを離れよう（リロード・タブを閉じる等）とした場合に警告を出す
   function beforeUnloadDuringSubmit(e) {
     e.preventDefault();
     e.returnValue = '';
     return '';
   }
 
-  // 送信ボタン・状態を通常表示に戻す（成功して次の画面に進む場合は呼ばない）
   function resetSubmitButton() {
     const btn = document.getElementById("submitBtn");
     const labelEl = document.getElementById("submitLabel");
@@ -1656,7 +1567,15 @@ function checkWaitingStatus() {
   }
 
   async function submitForm() {
-    if (isSubmitting) return; // すでに送信中なら無視
+    if (isSubmitting) return;
+
+    // 送信直前に受付終了時間チェック
+    if (new Date() > APPLICATION_END_AT) {
+      alert("申請受付時間は終了しました。");
+      showApplicationClosedState();
+      return;
+    }
+
     const name = document.getElementById("name").value.trim();
     const count = parseInt(document.getElementById("count").value, 10);
     const termsChecked = document.getElementById("termsCheckbox").checked;
@@ -1666,7 +1585,6 @@ function checkWaitingStatus() {
     if (!termsChecked) { showError('formError', '利用規約への同意が必要です。'); return; }
     showError('formError', '');
 
-    // 即座にボタンを無効化して多重クリックを防止
     const btn = document.getElementById("submitBtn");
     const labelEl = document.getElementById("submitLabel");
     isSubmitting = true;
@@ -1674,18 +1592,15 @@ function checkWaitingStatus() {
     labelEl.innerHTML = '<span class="btn-spinner" aria-hidden="true"></span> 送信中...';
     window.addEventListener('beforeunload', beforeUnloadDuringSubmit);
 
-    // 送信直前に最新の残席をチェック（競合回避）
     try {
       const res = await fetch(GAS_URL + "?mode=remaining");
       const data = await res.json();
       const used = data[selectedTime];
       
-      // CAPACITY[selectedTime] とすることで、"a"なら500、"b"なら800が取得できます
       const remaining = CAPACITY[selectedTime] - used;
 
       if (remaining <= 0) {
         showError('formError', '選択した時間帯が満員になりました。別の時間帯を選択してください。');
-        // UI 更新
         await loadRemaining();
         resetSubmitButton();
         return;
@@ -1710,20 +1625,16 @@ function checkWaitingStatus() {
         + "&count=" + count
         + "&sessionId=" + encodeURIComponent(sessionId);
 
-    // 申請中オーバーレイ（ローディングバー＋案内文言）を表示してから送信開始
     showLoading(SUBMIT_PROCESSING_MSG);
     sendSubmission(submitUrl, 0);
   }
 
-  // スプレッドシートへの記録が「他の人の申請処理中」で弾かれた（status: "busy"）場合、
-  // エラーにせず自動的に少し待ってから再送信する。ユーザーがボタンを押し直す必要はない。
   function sendSubmission(url, attempt) {
     fetch(url)
       .then(res => res.json())
       .then(data => {
         if (data.status === "ok") {
           hideLoading(true);
-          // 送信成功時はポーリングを止めても良い（完了画面へ）
           stopPolling();
           stopWaitingPolling();
           window.removeEventListener('beforeunload', beforeUnloadDuringSubmit);
