@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>入室番号 更新フォーム</title>
+<title>整理券状況 更新フォーム</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
@@ -254,8 +254,8 @@
 <div class="wrap">
   <header>
     <div class="eyebrow">文化祭 受付用</div>
-    <h1>入室番号を更新</h1>
-    <p>自分のクラスを選んで、今入室してもらった整理券の番号を入力してください。</p>
+    <h1>整理券状況を更新</h1>
+    <p>自分のクラスを選んで、現在の「発券番号」と「入室完了番号」をそれぞれ入力してください。</p>
   </header>
 
   <div class="card">
@@ -267,10 +267,28 @@
     <div class="class-grid" id="classGrid"></div>
   </div>
 
+  <!-- 発券済み整理券番号 -->
   <div class="card">
-    <h2>現在入室した整理券番号</h2>
-    <div class="selected-label" id="selectedLabel">
-      クラス未選択 <span class="floor" id="selectedFloor"></span>
+    <h2>① 現在発券した最新の整理券番号</h2>
+    <div class="selected-label">
+      <span id="selectedLabelIssued">クラス未選択</span>
+      <span class="floor" id="selectedFloorIssued"></span>
+    </div>
+    <div class="current-hint" id="issuedHint"></div>
+    <div class="stepper">
+      <button type="button" id="issuedMinusBtn" aria-label="1つ戻す">−</button>
+      <input type="number" id="issuedNumberInput" min="0" max="999" value="0" inputmode="numeric">
+      <button type="button" id="issuedPlusBtn" aria-label="次の番号へ">＋</button>
+    </div>
+    <div class="unit-label">番まで発券済み</div>
+  </div>
+
+  <!-- 現在入室した整理券番号 -->
+  <div class="card">
+    <h2>② 現在入室した整理券番号</h2>
+    <div class="selected-label">
+      <span id="selectedLabel">クラス未選択</span>
+      <span class="floor" id="selectedFloor"></span>
     </div>
     <div class="current-hint" id="currentHint"></div>
     <div class="stepper">
@@ -278,9 +296,9 @@
       <input type="number" id="numberInput" min="0" max="999" value="0" inputmode="numeric">
       <button type="button" id="plusBtn" aria-label="次の番号へ">＋</button>
     </div>
-    <div class="unit-label">番</div>
+    <div class="unit-label">番まで入室済み</div>
     <div class="note-box" id="noteBox">
-      次に入室する番号　<strong id="nextNumber">1番</strong><br>
+      次に入室する番号 <strong id="nextNumber">1番</strong><br>
       <span style="font-size:12px;">（0 = まだ誰も入室していない状態）</span>
     </div>
   </div>
@@ -288,7 +306,7 @@
   <button type="button" class="submit-btn" id="submitBtn" disabled>この内容で更新する</button>
   <div class="message" id="message"></div>
 
-  <footer>入室してもらうたびに「＋」で次の番号にして更新してください</footer>
+  <footer>更新内容を確認し、「この内容で更新する」を押してください</footer>
 </div>
 
 <script>
@@ -299,11 +317,21 @@
   const classGrid = document.getElementById('classGrid');
   const yearTabs = document.querySelectorAll('.year-tab');
   const selectedLabel = document.getElementById('selectedLabel');
+  const selectedLabelIssued = document.getElementById('selectedLabelIssued');
+  const selectedFloor = document.getElementById('selectedFloor');
+  const selectedFloorIssued = document.getElementById('selectedFloorIssued');
+  
+  // 入室用エレメント
   const numberInput = document.getElementById('numberInput');
   const nextNumber = document.getElementById('nextNumber');
+  const currentHint = document.getElementById('currentHint');
+
+  // 発券用エレメント
+  const issuedNumberInput = document.getElementById('issuedNumberInput');
+  const issuedHint = document.getElementById('issuedHint');
+
   const submitBtn = document.getElementById('submitBtn');
   const messageBox = document.getElementById('message');
-  const currentHint = document.getElementById('currentHint');
 
   let currentYear = "1";
   let selectedClass = null;
@@ -323,9 +351,17 @@
     return time ? `${base}（${time} 更新）` : base;
   }
 
+  function describeIssued(num, updatedAt){
+    const time = formatTime(updatedAt);
+    const base = num === 0 ? "現在の登録値: 未発券（0）" : `現在の登録値: ${num}番まで発券`;
+    return time ? `${base}（${time} 更新）` : base;
+  }
+
   async function fetchCurrentStatus(){
     currentHint.textContent = "現在の登録値を取得中…";
+    issuedHint.textContent = "現在の登録値を取得中…";
     currentHint.classList.add('loading');
+    issuedHint.classList.add('loading');
     try{
       const res = await fetch(GAS_URL, { method: "GET" });
       const data = await res.json();
@@ -335,11 +371,15 @@
         classDataLoaded = true;
       }
     } catch(err){
-      // 取得に失敗しても入力自体はできるようにする（0からの入力にフォールバック）
+      // 取得失敗時のフォールバック
     } finally {
       currentHint.classList.remove('loading');
+      issuedHint.classList.remove('loading');
       if(selectedClass) applyCurrentValue(selectedClass);
-      else currentHint.textContent = "";
+      else {
+        currentHint.textContent = "";
+        issuedHint.textContent = "";
+      }
     }
   }
 
@@ -347,13 +387,19 @@
     const info = classDataMap[cls];
     if(info){
       numberInput.value = info.currentNumber;
+      issuedNumberInput.value = info.issuedNumber !== undefined ? info.issuedNumber : 0;
       currentHint.textContent = describeCurrent(info.currentNumber, info.updatedAt);
+      issuedHint.textContent = describeIssued(info.issuedNumber || 0, info.updatedAt);
     } else if(classDataLoaded){
       numberInput.value = 0;
-      currentHint.textContent = "現在の登録値: データなし（0として入力できます）";
+      issuedNumberInput.value = 0;
+      currentHint.textContent = "現在の登録値: データなし（0）";
+      issuedHint.textContent = "現在の登録値: データなし（0）";
     } else {
       numberInput.value = 0;
+      issuedNumberInput.value = 0;
       currentHint.textContent = "";
+      issuedHint.textContent = "";
     }
     updateNextNumber();
   }
@@ -384,20 +430,26 @@
   function selectClass(cls){
     selectedClass = cls;
     const year = cls.split('-')[0];
-    selectedLabel.innerHTML = `${cls}組 <span class="floor">${floorForYear(year)}</span>`;
+    const floorStr = floorForYear(year);
+    
+    selectedLabel.textContent = `${cls}組`;
+    selectedLabelIssued.textContent = `${cls}組`;
+    selectedFloor.textContent = floorStr;
+    selectedFloorIssued.textContent = floorStr;
+
     try{ localStorage.setItem('congestion_selected_class', cls); }catch(e){}
     renderClassGrid();
     updateSubmitState();
     applyCurrentValue(cls);
   }
 
-  function getNumber(){
-    const n = parseInt(numberInput.value, 10);
+  function getNumber(input){
+    const n = parseInt(input.value, 10);
     return isNaN(n) ? 0 : Math.max(0, Math.min(MAX_NUMBER, n));
   }
 
   function updateNextNumber(){
-    nextNumber.textContent = `${Math.min(MAX_NUMBER, getNumber() + 1)}番`;
+    nextNumber.textContent = `${Math.min(MAX_NUMBER, getNumber(numberInput) + 1)}番`;
   }
 
   function updateSubmitState(){
@@ -413,18 +465,31 @@
     });
   });
 
+  // 入室番号ステッパー
   document.getElementById('minusBtn').addEventListener('click', () => {
-    numberInput.value = Math.max(0, getNumber() - 1);
+    numberInput.value = Math.max(0, getNumber(numberInput) - 1);
     updateNextNumber();
   });
   document.getElementById('plusBtn').addEventListener('click', () => {
-    numberInput.value = Math.min(MAX_NUMBER, getNumber() + 1);
+    numberInput.value = Math.min(MAX_NUMBER, getNumber(numberInput) + 1);
     updateNextNumber();
   });
   numberInput.addEventListener('input', () => {
     if(numberInput.value === "") return;
-    numberInput.value = getNumber();
+    numberInput.value = getNumber(numberInput);
     updateNextNumber();
+  });
+
+  // 発券番号ステッパー
+  document.getElementById('issuedMinusBtn').addEventListener('click', () => {
+    issuedNumberInput.value = Math.max(0, getNumber(issuedNumberInput) - 1);
+  });
+  document.getElementById('issuedPlusBtn').addEventListener('click', () => {
+    issuedNumberInput.value = Math.min(MAX_NUMBER, getNumber(issuedNumberInput) + 1);
+  });
+  issuedNumberInput.addEventListener('input', () => {
+    if(issuedNumberInput.value === "") return;
+    issuedNumberInput.value = getNumber(issuedNumberInput);
   });
 
   function showMessage(text, type){
@@ -434,8 +499,12 @@
 
   submitBtn.addEventListener('click', async () => {
     if(!selectedClass) return;
-    const number = getNumber();
+    const number = getNumber(numberInput);
+    const issuedNumber = getNumber(issuedNumberInput);
+
     numberInput.value = number;
+    issuedNumberInput.value = issuedNumber;
+
     submitBtn.disabled = true;
     submitBtn.textContent = "更新中…";
     messageBox.className = "message";
@@ -444,20 +513,25 @@
       const res = await fetch(GAS_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ class: selectedClass, number: number })
+        body: JSON.stringify({
+          class: selectedClass,
+          number: number,
+          issuedNumber: issuedNumber
+        })
       });
       const data = await res.json();
       if(data.success){
-        const label = number === 0 ? "入室なし（0）" : `${number}番`;
-        showMessage(`${selectedClass}組の入室番号を${label}に更新しました`, "success");
+        showMessage(`${selectedClass}組の状況を更新しました（発券:${issuedNumber}番 / 入室:${number}番）`, "success");
         const nowIso = new Date().toISOString();
         classDataMap[selectedClass] = {
           className: selectedClass,
           floor: floorForYear(selectedClass.split('-')[0]),
           currentNumber: number,
+          issuedNumber: issuedNumber,
           updatedAt: nowIso
         };
         currentHint.textContent = describeCurrent(number, nowIso);
+        issuedHint.textContent = describeIssued(issuedNumber, nowIso);
       } else {
         showMessage(data.message || "更新に失敗しました", "error");
       }
@@ -476,7 +550,11 @@
     currentYear = savedClass.split('-')[0];
     yearTabs.forEach(t => t.classList.toggle('active', t.dataset.year === currentYear));
     selectedClass = savedClass;
-    selectedLabel.innerHTML = `${savedClass}組 <span class="floor">${floorForYear(currentYear)}</span>`;
+    const floorStr = floorForYear(currentYear);
+    selectedLabel.textContent = `${savedClass}組`;
+    selectedLabelIssued.textContent = `${savedClass}組`;
+    selectedFloor.textContent = floorStr;
+    selectedFloorIssued.textContent = floorStr;
     updateSubmitState();
   }
   renderClassGrid();
