@@ -1,0 +1,351 @@
+"use strict";
+/* 共通ロジック：データの読み書き・順位計算・トーナメント判定 */
+
+const $ = (s, el = document) => el.querySelector(s);
+const LEAGUES = CONFIG.LEAGUES;
+const P = CONFIG.POINTS;
+const sgn = n => (n > 0 ? "+" + n : n < 0 ? String(n) : "±0");
+const leagueOf = c => LEAGUES.find(L => L.classes.includes(c));
+
+/* ---------- データ保存（Googleスプレッドシート or テストモード） ---------- */
+/*
+  通信できなくても使えるようにしてあります。
+  ・書き込み（保存・取り消し・同率順位）は、まず端末の「未送信キュー」に入り、通信できるときに順番に自動送信されます。
+  ・読み込みは、通信できれば最新を取得して端末に控え(キャッシュ)を残し、できなければ「控え＋未送信分」を表示します。
+*/
+const LS = {
+  get(k, d) { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* 容量不足など */ } },
+};
+const EMPTY = () => ({ results: {}, overrides: {} });
+
+function applyOp(d, op) {
+  if (op.action === "save") d.results[op.record.id] = op.record;
+  else if (op.action === "delete") delete d.results[op.id];
+  else if (op.action === "override") {
+    if (op.order && op.order.length) d.overrides[op.league] = op.order; else delete d.overrides[op.league];
+  } else if (op.action === "reset") { d.results = {}; d.overrides = {}; }
+}
+function finalizeAll(d) {
+  const results = {};
+  Object.keys(d.results).forEach(k => { results[k] = finalize(d.results[k]); });
+  return { results, overrides: d.overrides || {} };
+}
+
+const API = {
+  local: !CONFIG.API_URL,
+  KEY: "dodge_local_v2",      // テストモードの保存先
+  CACHE: "dodge_cache_v2",    // 最後に取得したサーバーの内容
+  OUTBOX: "dodge_outbox_v2",  // 未送信の操作
+  offline: false, flushing: null, failAt: 0,
+
+  readLocal() { return LS.get(this.KEY, EMPTY()); },
+  pending() { return this.local ? 0 : LS.get(this.OUTBOX, []).length; },
+
+  async fetchJSON(url, opt) {
+    // 直前に通信できなかったときは20秒ほど試さない（保存のたびに待たされないように）
+    if ((typeof navigator !== "undefined" && navigator.onLine === false) || Date.now() - this.failAt < 20000) throw new Error("オフライン");
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 6000);
+    try {
+      const res = await fetch(url, { ...opt, signal: ctl.signal });
+      if (!res.ok) throw new Error("通信エラー");
+      const j = await res.json();
+      this.failAt = 0;
+      return j;
+    } catch (e) { this.failAt = Date.now(); throw e; }
+    finally { clearTimeout(t); }
+  },
+  // 送信を試す。2.5秒で結果が出なければ待たずに先へ進む（残りは裏で続き、できなければ未送信のまま残る）
+  quickFlush() { return Promise.race([this.flush(), new Promise(r => setTimeout(r, 2500))]); },
+
+  async load() {
+    if (this.local) return finalizeAll(this.readLocal());
+    await this.quickFlush();
+    let base;
+    try {
+      const d = await this.fetchJSON(CONFIG.API_URL + "?action=all&t=" + Date.now());
+      const results = {};
+      (d.results || []).forEach(r => { results[r.id] = r; });
+      base = { results, overrides: d.overrides || {} };
+      LS.set(this.CACHE, base);
+      this.offline = false;
+    } catch (e) {
+      base = LS.get(this.CACHE, null);
+      if (!base) throw new Error("通信できず、この端末に保存された控えもありません。一度、通信できる場所でページを開いてください");
+      this.offline = true;
+    }
+    const d = JSON.parse(JSON.stringify(base));
+    LS.get(this.OUTBOX, []).forEach(op => applyOp(d, op));
+    return finalizeAll(d);
+  },
+
+  // 操作を記録する（通信は後回しにできる）
+  put(op) {
+    if (this.local) { const d = this.readLocal(); applyOp(d, op); LS.set(this.KEY, d); return; }
+    const q = LS.get(this.OUTBOX, []); q.push(op); LS.set(this.OUTBOX, q);
+  },
+  async post(op) { this.put(op); await this.quickFlush(); },
+
+  // 未送信の操作を古い順に送る。通信できなければ残したまま終わる（失敗しても例外は出さない）
+  flush() {
+    if (this.local) return Promise.resolve();
+    if (this.flushing) return this.flushing;
+    this.flushing = (async () => {
+      while (LS.get(this.OUTBOX, []).length) {
+        const op = LS.get(this.OUTBOX, [])[0];
+        try {
+          // text/plain で送る（Apps Script で CORS の事前確認が不要になる）
+          const j = await this.fetchJSON(CONFIG.API_URL, { method: "POST", body: JSON.stringify(op) });
+          if (!j.ok) console.warn("送信を受け付けられませんでした", j.error);
+        } catch (e) { this.offline = true; return; }
+        const q = LS.get(this.OUTBOX, []); q.shift(); LS.set(this.OUTBOX, q);
+        this.offline = false;
+      }
+    })().finally(() => { this.flushing = null; });
+    return this.flushing;
+  },
+
+  /* 端末どうしでファイルを受け渡すとき用（通信が全くないとき） */
+  raw() {
+    if (this.local) return this.readLocal();
+    const d = JSON.parse(JSON.stringify(LS.get(this.CACHE, EMPTY())));
+    LS.get(this.OUTBOX, []).forEach(op => applyOp(d, op));
+    return d;
+  },
+  exportJSON() { return JSON.stringify({ app: "dodgeball", exported: new Date().toISOString(), ...this.raw() }); },
+  async importJSON(text) {
+    let d;
+    try { d = JSON.parse(text); } catch (e) { throw new Error("ファイルを読み取れません"); }
+    if (!d || d.app !== "dodgeball" || typeof d.results !== "object") throw new Error("このサイトの書き出しファイルではありません");
+    const ids = Object.keys(d.results);
+    ids.forEach(id => {
+      const r = d.results[id];
+      if (!r || r.id !== id || typeof r.games !== "string") throw new Error("結果の形式が正しくありません（" + id + "）");
+    });
+    ids.forEach(id => this.put({ action: "save", record: d.results[id] }));
+    Object.keys(d.overrides || {}).forEach(l => this.put({ action: "override", league: Number(l), order: d.overrides[l] }));
+    await this.flush();
+    return ids.length;
+  },
+};
+
+/* 通信状態の表示（#net がある画面だけ） */
+function renderNet() {
+  const el = document.getElementById("net");
+  if (!el || API.local) return;
+  const n = API.pending();
+  if (!API.offline && !n) { el.innerHTML = ""; return; }
+  el.innerHTML = '<div class="banner">' + (API.offline ? "通信できません。" : "") +
+    (n ? `未送信の結果が ${n} 件あります（この端末には保存済みです。通信が戻ると自動で送信されます）。`
+       : "この端末に残っている最後の内容を表示しています。") + "</div>";
+}
+
+/* 「通信できないとき」の書き出し／取り込み（#offline がある画面だけ） */
+function mountOfflineTools(el, after) {
+  if (!el) return;
+  el.innerHTML = `<h2 class="group">通信できないとき</h2>
+    <p class="hint">入力した結果はこの端末にも保存されています。端末どうしで受け渡すときは、書き出したファイルをUSBメモリやニアバイシェアなどで本部の端末に移し、取り込んでください。同じ試合の結果は、取り込んだファイルの内容で上書きされます。</p>
+    <div class="offtools"><button type="button" class="ghost" data-x="ex">この端末の結果を書き出す</button>
+    <button type="button" class="ghost" data-x="im">結果ファイルを取り込む</button></div>
+    <input type="file" accept=".json,application/json" hidden><p class="hint" data-x="msg"></p>`;
+  const inp = el.querySelector("input"), msg = el.querySelector('[data-x="msg"]');
+  el.addEventListener("click", e => {
+    const x = e.target.dataset && e.target.dataset.x;
+    if (x === "ex") {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([API.exportJSON()], { type: "application/json" }));
+      const t = new Date();
+      a.download = `dodgeball-results-${String(t.getHours()).padStart(2, "0")}${String(t.getMinutes()).padStart(2, "0")}.json`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      msg.textContent = "書き出しました（ダウンロードフォルダを確認してください）";
+    } else if (x === "im") inp.click();
+  });
+  inp.addEventListener("change", async () => {
+    const f = inp.files[0];
+    inp.value = "";
+    if (!f || !confirm("同じ試合の結果は、ファイルの内容で上書きされます。取り込みますか？")) return;
+    try { const n = await API.importJSON(await f.text()); msg.textContent = `${n}試合分を取り込みました`; if (after) after(); }
+    catch (err) { msg.textContent = "取り込めませんでした：" + err.message; }
+  });
+}
+
+/* 通信が戻ったら自動で未送信分を送る／ページを通信なしでも開けるようにする */
+if (typeof window !== "undefined") {
+  const kick = () => API.flush().then(renderNet);
+  window.addEventListener("online", () => { API.failAt = 0; kick(); });
+  if (!API.local) setInterval(kick, 15000);
+  if ("serviceWorker" in navigator && /^https?:/.test(location.protocol)) navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+
+/* ---------- 試合の一覧（リーグ戦） ---------- */
+const LEAGUE_MATCHES = {};
+const ALL_LEAGUE_MATCHES = [];
+(function () {
+  const sched = CONFIG.SCHEDULE || [];
+  const order = (a, b) => {
+    const i = sched.findIndex(p => (p[0] === a && p[1] === b) || (p[0] === b && p[1] === a));
+    return i < 0 ? 999 : i;
+  };
+  LEAGUES.forEach(L => {
+    const n = L.classes.length, list = [];
+    for (let i = 0; i < n; i++) {
+      let a = L.classes[i], b = L.classes[(i + 1) % n];
+      if (sched.some(p => p[0] === b && p[1] === a)) [a, b] = [b, a]; // 左右の向きは SCHEDULE に合わせる
+      list.push({ id: `M${Math.min(a, b)}-${Math.max(a, b)}`, a, b, league: L.id, ord: order(a, b), kind: "league" });
+    }
+    LEAGUE_MATCHES[L.id] = list.slice().sort((x, y) => x.ord - y.ord);
+    ALL_LEAGUE_MATCHES.push(...list);
+  });
+  ALL_LEAGUE_MATCHES.sort((x, y) => x.ord - y.ord || x.league - y.league);
+  ALL_LEAGUE_MATCHES.forEach((m, i) => { m.no = i + 1; });
+})();
+
+/* ---------- 結果の扱い ---------- */
+/*
+  1試合の記録：{ id, a, b, games: [[aの内野残り, bの内野残り], ...] }
+  ここから次の4つを計算して持たせる（finalize）
+    sa, sb … 勝ったゲーム数（試合の勝敗はこれで決まる）
+    ia, ib … 得点。試合に勝った側が「勝ったゲーム」の内野差を合計したもの（負けた側は0。負けた側が勝ったゲームの内野差は数えない）
+  例）1組勝(差2)・2組勝(差3)・1組勝(差3) → 1組の勝ち 2対1、ia=5, ib=0（得失点差 1組+5）
+*/
+const gameDone = g => !!g && Number.isInteger(g[0]) && Number.isInteger(g[1]);
+const encGames = gs => gs.map(g => g[0] + "-" + g[1]).join("|");
+const decGames = s => String(s || "").split("|").filter(Boolean)
+  .map(t => t.split("-").map(Number)).filter(p => p.length === 2 && p.every(Number.isFinite));
+
+function tally(games) {
+  let wa = 0, wb = 0, da = 0, db = 0;
+  games.forEach(([x, y]) => {
+    if (x > y) { wa++; da += x - y; } else if (y > x) { wb++; db += y - x; }
+  });
+  const o = wa > wb ? "A" : wa < wb ? "B" : "D";
+  return { sa: wa, sb: wb, ia: o === "A" ? da : 0, ib: o === "B" ? db : 0 };
+}
+
+// 入力欄に出すゲーム数：最低 min 、勝ちゲーム数が並んでいれば次のゲームを出す
+function gameCount(games, ko) {
+  const G = CONFIG.GAMES, max = ko ? G.koMax : G.leagueMax;
+  let n = G.min;
+  while (n < max) {
+    const g = games.slice(0, n);
+    if (g.length < n || !g.every(gameDone)) break;
+    const t = tally(g);
+    if (t.sa !== t.sb) break;
+    n++;
+  }
+  return n;
+}
+
+function finalize(r) {
+  const games = typeof r.games === "string" ? decGames(r.games) : Array.isArray(r.games) ? r.games : [];
+  return games.length ? { ...r, games, ...tally(games) } : { ...r, games: [] };
+}
+
+// 記録を「a が左側」の向きにそろえる
+function orient(r, a) {
+  if (r.a === a) return r;
+  return { ...r, a: r.b, b: r.a, sa: r.sb, sb: r.sa, ia: r.ib, ib: r.ia, games: (r.games || []).map(g => [g[1], g[0]]) };
+}
+const getRec = (m, results) => (results[m.id] ? orient(results[m.id], m.a) : null);
+// "A"=左の勝ち "B"=右の勝ち "D"=引き分け（スコアで判定）
+const outcome = r => (r.sa > r.sb ? "A" : r.sa < r.sb ? "B" : "D");
+// トーナメントは引き分け不可：勝ちゲーム数で勝者を決める（並んだ場合は決着がつくまでゲームを追加）
+function koWinner(r) {
+  if (r.sa !== r.sb) return r.sa > r.sb ? r.a : r.b;
+  return null;
+}
+
+/* ---------- リーグ順位 ---------- */
+function standings(L, results, overrides) {
+  const ms = LEAGUE_MATCHES[L.id];
+  const rows = L.classes.map(c => ({ c, p: 0, w: 0, d: 0, l: 0, pts: 0, gf: 0, ga: 0, diff: 0 }));
+  const by = {};
+  rows.forEach(r => { by[r.c] = r; });
+  let done = 0;
+  ms.forEach(m => {
+    const r = getRec(m, results);
+    if (!r) return;
+    done++;
+    const A = by[m.a], B = by[m.b], o = outcome(r);
+    A.p++; B.p++;
+    A.gf += r.ia; A.ga += r.ib; B.gf += r.ib; B.ga += r.ia;
+    if (o === "A") { A.w++; B.l++; A.pts += P.win; B.pts += P.lose; }
+    else if (o === "B") { B.w++; A.l++; B.pts += P.win; A.pts += P.lose; }
+    else { A.d++; B.d++; A.pts += P.draw; B.pts += P.draw; }
+  });
+  rows.forEach(r => { r.diff = r.gf - r.ga; });
+
+  const cmp = (x, y) => y.pts - x.pts || y.diff - x.diff || y.gf - x.gf;
+  rows.sort(cmp);
+
+  const ov = (overrides[L.id] || []).map(Number);
+  const sorted = [];
+  let undecided = false, i = 0;
+  while (i < rows.length) {
+    let j = i + 1;
+    while (j < rows.length && cmp(rows[i], rows[j]) === 0) j++;
+    const g = rows.slice(i, j);
+    let tie = false;
+    if (g.length > 1) {
+      let resolved = false;
+      if (g.length === 2) { // 2組だけの同率は直接対決
+        const m = ms.find(m => (m.a === g[0].c && m.b === g[1].c) || (m.a === g[1].c && m.b === g[0].c));
+        const r = m && getRec(m, results);
+        if (r && outcome(r) !== "D") {
+          const winner = outcome(r) === "A" ? m.a : m.b;
+          if (winner === g[1].c) g.reverse();
+          resolved = true;
+        }
+      }
+      if (!resolved) {
+        if (g.every(x => ov.includes(x.c))) { // 本部が手動で決めた順位
+          g.sort((x, y) => ov.indexOf(x.c) - ov.indexOf(y.c));
+          g.forEach(x => { x.manual = true; });
+        } else {
+          tie = true;
+          g.sort((x, y) => x.c - y.c);
+        }
+      }
+    }
+    g.forEach((x, k) => { x.pos = i + k + 1; x.tie = tie; x.rank = tie ? i + 1 : i + k + 1; });
+    if (tie && i < CONFIG.ADVANCE) undecided = true; // 進出順位に関わる同率
+    sorted.push(...g);
+    i = j;
+  }
+  const complete = done === ms.length;
+  return {
+    league: L, rows: sorted, done, total: ms.length, complete, undecided,
+    settled: complete && !undecided,
+    tied: sorted.filter(r => r.tie && r.rank <= CONFIG.ADVANCE),
+  };
+}
+
+/* ---------- 決勝トーナメント ---------- */
+function bracket(sts, results) {
+  const [L1, L2] = LEAGUES, [s1, s2] = sts;
+  const pick = (st, k) => (st.settled ? st.rows[k - 1].c : null);   // 確定
+  const prov = (st, k) => (st.done > 0 ? st.rows[k - 1].c : null);  // 暫定
+  const mk = (id, name, aSrc, bSrc, a, b, pa, pb) => {
+    const raw = results[id];
+    let rec = null, stale = false;
+    if (raw) {
+      if (a && b && ((raw.a === a && raw.b === b) || (raw.a === b && raw.b === a))) rec = orient(raw, a);
+      else stale = true; // リーグ戦の修正で対戦カードが変わった
+    }
+    const winner = rec ? koWinner(rec) : null;
+    return {
+      id, name, title: name, sub: "決勝トーナメント", aSrc, bSrc, a, b, pa, pb, rec, stale,
+      winner, loser: winner ? (winner === a ? b : a) : null, ready: !!(a && b), ko: true,
+    };
+  };
+  const sf1 = mk("SF1", "準決勝A", `${L1.name}1位`, `${L2.name}2位`, pick(s1, 1), pick(s2, 2), prov(s1, 1), prov(s2, 2));
+  const sf2 = mk("SF2", "準決勝B", `${L2.name}1位`, `${L1.name}2位`, pick(s2, 1), pick(s1, 2), prov(s2, 1), prov(s1, 2));
+  const tp = mk("TP", "3位決定戦", "準決勝A敗者", "準決勝B敗者", sf1.loser, sf2.loser);
+  const fin = mk("F", "決勝", "準決勝A勝者", "準決勝B勝者", sf1.winner, sf2.winner);
+  return [sf1, sf2, tp, fin];
+}
+
+if (typeof module !== "undefined") {
+  module.exports = { standings, bracket, getRec, outcome, koWinner, LEAGUE_MATCHES, ALL_LEAGUE_MATCHES };
+}
