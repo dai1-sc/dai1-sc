@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>クラスマッチ ドッチボール</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top"><h1 id="t">クラスマッチ ドッチボール</h1></header>
+  <p class="hint">使う場所に合わせて選んでください。</p>
+  <div class="entry">
+    <a href="referee.html"><b>審判用</b><span>試合結果（スコア・内野の残り人数）を入力します</span></a>
+    <a href="hq.html"><b>本部用</b><span>リーグ表・得失点差・決勝トーナメントを確認します</span></a>
+  </div>
+</div>
+<script>document.write('<script src="config.js?t=' + Date.now() + '"><\/script>')</script>
+<script>
+document.getElementById("t").textContent = CONFIG.TITLE;
+if ("serviceWorker" in navigator && /^https?:/.test(location.protocol)) navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).catch(function () {});
+</script>
+</body>
+</html>
