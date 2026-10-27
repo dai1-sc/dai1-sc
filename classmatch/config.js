@@ -4,7 +4,7 @@ const CONFIG = {
 
   // Googleスプレッドシート連携（Apps Script）のURL。
   // 空のままだと「テストモード」になり、結果はそのブラウザの中にだけ保存されます。
-  API_URL: "https://script.google.com/macros/s/AKfycbwTihOIJ7bZGT-xkMB0vjSNNFIsixYTepXFueXm7Jh-Pq9XV1OZd5U9fpbGofLF6N4/exec",
+  API_URL:"https://script.google.com/macros/s/AKfycbwTihOIJ7bZGT-xkMB0vjSNNFIsixYTepXFueXm7Jh-Pq9XV1OZd5U9fpbGofLF6N4/exec",
 
   // リーグ。classes は図の「時計回り」の並び順です（隣同士＝線でつながっている組＝対戦する組）。
   // startAngle は図の1番目のクラスを置く角度（-90＝真上、-135＝左上）。
