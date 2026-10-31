@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>サッカー 本部用</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1 id="t">クラスマッチ サッカー</h1>
+    <span class="role">本部用（結果入力もここで行います）</span>
+    <nav><a href="#entry">結果入力</a><a href="#leagues">リーグ表</a><a href="#bracket">決勝・3位決定戦</a><a href="index.html">トップ</a></nav>
+  </header>
+  <div id="banner"></div>
+  <div id="net"></div>
+  <div class="tools">
+    <span id="progress"></span>
+    <span id="upd"></span>
+    <button id="reload" type="button">今すぐ更新</button>
+    <label><input type="checkbox" id="auto" checked> 自動更新</label>
+    <span id="err" class="err"></span>
+  </div>
+
+  <section class="block" id="entry"><h2 class="sec">結果の入力・全試合の結果</h2>
+    <p class="hint entryhint">試合が終わったら、スコアを入れて「保存」を押します。保存した結果は、あとから直して「修正を保存」できます。</p>
+    <div class="scroll" id="en"></div></section>
+  <section class="block" id="leagues"><h2 class="sec">リーグ戦</h2>
+    <p class="legend"><span class="w">○</span> 勝ち　<span class="l">●</span> 負け　<span class="d">△</span> 引き分け　／　線の上の数字は スコア　／　色が付いた組は 決勝または3位決定戦に進む順位</p>
+    <div class="leagues" id="lg"></div></section>
+  <section class="block" id="bracket"><h2 class="sec">決勝・3位決定戦</h2><div id="br"></div></section>
+  <p class="rules" id="rules"></p>
+  <div id="offline" class="offline"></div>
+</div>
+<div id="toast" role="status"></div>
+<script>window.SPORT = "soccer";</script>
+<script>document.write('<script src="config.js?t=' + Date.now() + '"><\/script>')</script>
+<script src="common.js"></script>
+<script src="sport.js"></script>
+</body>
+</html>
