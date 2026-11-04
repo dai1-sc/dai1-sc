@@ -171,10 +171,10 @@ function updateSum() {
   const mine = diffs(left ? "a" : "b"), other = diffs(left ? "b" : "a");
   const sum = a => a.reduce((x, y) => x + y, 0), pts = sum(mine), loser = left ? m.b : m.a;
   const why = c.tb === "diff" ? `<small>勝ちゲーム数が同じため、勝ったゲームの内野差の合計で決着（${c.win}組 ${pts} ／ ${loser}組 ${sum(other)}）</small>`
-    : c.tb === "sd" ? "<small>勝ちゲーム数も内野差の合計も同じだったため、サドンデスで決着（サドンデスの内野差も得失点に加わります）</small>" : "";
-  el.innerHTML = `${c.win}組の勝ち　${mine.length}勝${other.length}敗${c.tb ? "（" + (c.tb === "sd" ? "サドンデス" : "内野差の合計") + "）" : ""}　（得失点差 ${c.win}組 +${pts}）` + why +
-    `<small>得失点に数えるのは、${c.win}組が勝ったゲームの内野差：${mine.length ? mine.join("＋") + " ＝ " + pts : "なし"}` +
-    (other.length ? `　／　${loser}組が勝ったゲームの内野差（${other.join("、")}）は数えません` : "") + "</small>";
+    : c.tb === "sd" ? "<small>勝ちゲーム数も内野差の合計も同じだったため、サドンデスで決着（サドンデスの内野差も得失点差に加わります）</small>" : "";
+  const net = pts - sum(other);
+  el.innerHTML = `${c.win}組の勝ち　${mine.length}勝${other.length}敗${c.tb ? "（" + (c.tb === "sd" ? "サドンデス" : "内野差の合計") + "）" : ""}　（得失点差 ${c.win}組 ${sgn(net)}／${loser}組 ${sgn(-net)}）` + why +
+    `<small>得失点差は全ゲームで数えます（勝ったゲームは＋、負けたゲームは－）：${c.win}組 ${mine.length ? "＋" + mine.join("＋") : ""}${other.length ? other.map(x => "－" + x).join("") : ""} ＝ ${sgn(net)}</small>`;
 }
 
 function afterChange() {
